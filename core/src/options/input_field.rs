@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use syn::{parse_quote_spanned, spanned::Spanned};
 
 use crate::codegen;
-use crate::options::{Core, DefaultExpression, ParseAttribute};
+use crate::options::{Core, DefaultExpression, Multiple, ParseAttribute};
 use crate::util::{Flag, SpannedValue};
 use crate::{Error, FromMeta, Result};
 
@@ -19,7 +19,7 @@ pub struct InputField {
     /// instead always falling back to either `InputField::default` or `Default::default`.
     pub skip: Option<SpannedValue<bool>>,
     pub post_transform: Option<codegen::PostfixTransform>,
-    pub multiple: Option<bool>,
+    pub multiple: Option<Multiple>,
     pub flatten: Flag,
 }
 
@@ -44,7 +44,7 @@ impl InputField {
             ),
             skip: *self.skip.unwrap_or_default(),
             post_transform: self.post_transform.as_ref(),
-            multiple: self.multiple.unwrap_or_default(),
+            multiple: self.multiple,
             flatten: self.flatten.is_present(),
         }
     }
@@ -193,7 +193,7 @@ impl ParseAttribute for InputField {
 
             self.multiple = FromMeta::from_meta(mi)?;
 
-            if self.multiple == Some(true) && self.flatten.is_present() {
+            if self.multiple.is_some() && self.flatten.is_present() {
                 return Err(
                     Error::custom("`flatten` and `multiple` cannot be used together").with_span(mi),
                 );
@@ -207,7 +207,7 @@ impl ParseAttribute for InputField {
 
             let mut conflicts = Error::accumulator();
 
-            if self.multiple == Some(true) {
+            if self.multiple.is_some() {
                 conflicts.push(
                     Error::custom("`flatten` and `multiple` cannot be used together").with_span(mi),
                 );

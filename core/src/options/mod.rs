@@ -67,6 +67,33 @@ impl FromMeta for DefaultExpression {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Multiple {
+    Normal,
+    Inline,
+}
+
+#[doc(hidden)]
+impl FromMeta for Multiple {
+    fn from_word() -> Result<Self> {
+        Ok(Self::Normal)
+    }
+
+    fn from_list(items: &[NestedMeta]) -> Result<Self> {
+        if items.len() != 1 {
+            return Err(Error::too_many_items(1));
+        }
+
+        match items.first().unwrap() {
+            NestedMeta::Meta(meta) => match meta {
+                syn::Meta::Path(path) if path.is_ident("inline") => return Ok(Self::Inline),
+                _ => todo!(),
+            },
+            NestedMeta::Lit(_) => return Err(Error::unsupported_format("lit")),
+        }
+    }
+}
+
 /// Middleware for extracting attribute values. Implementers are expected to override
 /// `parse_nested` so they can apply individual items to themselves, while `parse_attributes`
 /// is responsible for looping through distinct outer attributes and collecting errors.

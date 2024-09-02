@@ -5,6 +5,7 @@ use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 use syn::{spanned::Spanned, Ident, Path, Type};
 
 use crate::codegen::{DefaultExpression, PostfixTransform};
+use crate::options::Multiple;
 use crate::usage::{self, IdentRefSet, IdentSet, UsesTypeParams};
 
 /// Properties needed to generate code for a field in all the contexts
@@ -25,7 +26,7 @@ pub struct Field<'a> {
     pub with_path: Cow<'a, Path>,
     pub post_transform: Option<&'a PostfixTransform>,
     pub skip: bool,
-    pub multiple: bool,
+    pub multiple: Option<Multiple>,
     /// If set, this field will be given all unclaimed meta items and will
     /// not be exposed as a standard named field.
     pub flatten: bool,
@@ -90,7 +91,8 @@ impl<'a> ToTokens for Declaration<'a> {
         let ident = field.ident;
         let ty = field.ty;
 
-        tokens.append_all(if field.multiple {
+        tokens.append_all(if field.multiple.is_some() {
+            // TODO (@Techassi): Do I need to do something here?
             // This is NOT mutable, as it will be declared mutable only temporarily.
             quote!(let mut #ident: #ty = ::darling::export::Default::default();)
         } else {
@@ -162,7 +164,7 @@ impl<'a> ToTokens for MatchArm<'a> {
         // Errors include the location of the bad input, so we compute that here.
         // Fields that take multiple values add the index of the error for convenience,
         // while single-value fields only expose the name in the input attribute.
-        let location = if field.multiple {
+        let location = if field.multiple.is_some() {
             // we use the local variable `len` here because location is accessed via
             // a closure, and the borrow checker gets very unhappy if we try to immutably
             // borrow `#ident` in that closure when it was declared `mut` outside.
@@ -181,7 +183,8 @@ impl<'a> ToTokens for MatchArm<'a> {
         // us one `if` check.
         let extractor = quote_spanned!(with_path.span()=>#with_path(__inner)#post_transform.map_err(|e| e.with_span(&__inner).at(#location)));
 
-        tokens.append_all(if field.multiple {
+        tokens.append_all(if field.multiple.is_some() {
+            // TODO (@Techassi): Adjust generated code
                 quote!(
                     #name_str => {
                         // Store the index of the name we're assessing in case we need
@@ -213,7 +216,8 @@ impl<'a> ToTokens for Initializer<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let field = self.0;
         let ident = field.ident;
-        tokens.append_all(if field.multiple {
+        // TODO (@Techassi): Adjust generated code
+        tokens.append_all(if field.multiple.is_some() {
             if let Some(ref expr) = field.default_expression {
                 quote_spanned!(expr.span()=> #ident: if !#ident.is_empty() {
                     #ident
@@ -240,7 +244,8 @@ pub struct CheckMissing<'a>(&'a Field<'a>);
 
 impl<'a> ToTokens for CheckMissing<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        if !self.0.multiple && self.0.default_expression.is_none() {
+        // TODO (@Techassi): Adjust generated code
+        if !self.0.multiple.is_some() && self.0.default_expression.is_none() {
             let ident = self.0.ident;
             let ty = self.0.ty;
             let name_in_attr = &self.0.name_in_attr;
